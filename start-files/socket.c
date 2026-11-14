@@ -17,14 +17,28 @@ typedef enum root_sockets_options{
   root_exp
 }root_sockets_options;
 
+// =================================== ADDR TO SEND TO 
+
+typedef struct sockaddr_in{
+  // destination_ip
+  // destination_port
+}sockaddr_in;
+
+// Not needed for UDP ? i guess but why ---- shooting in the wild anyway lol.
+
+// ===================================
+
 
 // here we define the sockets individually.
 struct usr_exp{
-  char usr_exp_buffer[1024*32]; 
+  char usr_exp_buffer[1024*32];
+  int socket_flags;
+  // how to add domain wtf ? 
 };
 
 struct root_exp{
   char root_exp_buffer[1024*36];
+  int socket_flags;
 };
 
 
@@ -34,6 +48,11 @@ typedef struct socket_metadata{
   int escalation;
   void* file_location;
   int socket_type;
+
+  int domain;
+  int type;
+  int protocol;
+  
 }socket_metadata;
 
 
@@ -59,12 +78,12 @@ typedef struct socket_metadata{
 //};
 
 int socket_handling(struct socket_metadata);
-int data_handling(char* file,int flags,char* buffer);
+
+int data_handling(char* file,int flags,char* buffer, struct socket_metadata curr_sock_meta);
 
 
 
-
-// ex --> [name] esc socket_type file_location
+// ex --> [name] esc socket_type file_location addr;
 int main(int argc,char* argv[]){
   struct socket_metadata curr_sock_meta;
 
@@ -73,7 +92,7 @@ int main(int argc,char* argv[]){
   curr_sock_meta.socket_type = *argv[2];
 
   switch(argc){
-    case 5 : break;
+    case 6 : break;
     default : perror("Missed something - refer to docs: "); exit(1);
   }
   
@@ -92,6 +111,29 @@ int socket_handling(struct socket_metadata curr_sock_meta){
 
         case 0 : {
           struct usr_exp usr_exp;
+          
+          usr_exp.socket_flags = O_RDONLY;
+          curr_sock_meta.domain = AF_INET;
+          curr_sock_meta.type =  SOCK_STREAM;
+          curr_sock_meta.protocol = 0;
+
+          int socket_fd = socket(AF_INET,SOCK_STREAM,0);
+          if(socket_fd < 0){
+            perror("error in opening socket btw: "); 
+            exit(1);
+          }
+
+          int data_handling_status = data_handling(curr_sock_meta.file_location,
+                        usr_exp.socket_flags,
+                        usr_exp.usr_exp_buffer,
+                        curr_sock_meta
+                        );
+
+          if(data_handling_status != 0){
+            perror("data_handling error: ");
+            exit(1);
+          }
+
         }
 
         default : exit(1);
@@ -106,6 +148,11 @@ int socket_handling(struct socket_metadata curr_sock_meta){
 
         case 0 : {
           struct root_exp root_exp;
+          // root_exp.socket_flags = O_RDONLY | O_WRONLY
+          data_handling(curr_sock_meta.file_location,
+                        root_exp.socket_flags,
+                        root_exp.root_exp_buffer,curr_sock_meta
+                        );
         }
 
         default : exit(1);
@@ -119,9 +166,9 @@ int socket_handling(struct socket_metadata curr_sock_meta){
   return 0;
 }
 
-
-
-int data_handling(char* file,int flags,char* buffer)
+// TCP --- CONNECT a lot of stuff and bruh.
+// UDP --> Skips connect;
+int data_handling(char* file,int flags,char* buffer, struct socket_metadata curr_sock_meta)
 {
   if(file == NULL){
     perror("location not defined");
@@ -134,19 +181,22 @@ int data_handling(char* file,int flags,char* buffer)
     exit(1);
   }
 
-  ssize_t size_read = 0;
   ssize_t total_read = 0;
+  ssize_t size_read = 0;
 
   if( (size_read = read(file_fd,
                         buffer,sizeof(buffer) - 1 )) > 0 ) {
+
     total_read += size_read;
+    
   }
   else {
     if(total_read > sizeof(buffer - 1)){
       // debug info T-T 
       buffer[sizeof(buffer)] = '\0';
-      total_read = 0;
+      total_read = 0; // reset the total_read for the next set;
     }
     buffer[total_read] = '\0';
   }
+  return 0;
 }
