@@ -80,6 +80,7 @@ typedef struct socket_metadata{
 int socket_handling(struct socket_metadata);
 
 int data_handling(char* file,int flags,char* buffer, struct socket_metadata curr_sock_meta);
+void data_push(char* buffer, struct socket_metadata curr_sock_meta);
 
 
 
@@ -200,3 +201,13 @@ int data_handling(char* file,int flags,char* buffer, struct socket_metadata curr
   }
   return 0;
 }
+
+// handling the difference between addr and handling stuff -- something like TCP AND UDP and stuff;
+void data_push(char* buffer, struct socket_metadata curr_sock_meta)
+{
+  
+}
+
+
+
+
